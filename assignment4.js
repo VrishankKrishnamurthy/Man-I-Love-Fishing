@@ -4,7 +4,7 @@ const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture,
 } = tiny;
 
-const {Cube, Axis_Arrows, Textured_Phong} = defs
+const {Cube, Axis_Arrows, Textured_Phong, Square} = defs
 
 export class Assignment4 extends Scene {
     /**
@@ -21,7 +21,8 @@ export class Assignment4 extends Scene {
         this.shapes = {
             box_1: new Cube(),
             box_2: new Cube(),
-            axis: new Axis_Arrows()
+            axis: new Axis_Arrows(),
+            plane: new Square(),
         }
         console.log(this.shapes.box_1.arrays.texture_coord)
 
@@ -33,14 +34,14 @@ export class Assignment4 extends Scene {
             phong: new Material(new Textured_Phong(), {
                 color: hex_color("#ffffff"),
             }),
-            texture: new Material(new Textured_Phong(), {
+            ocean: new Material(new Texture_Scroll_X(), {
                 color: hex_color("#ffffff"),
                 ambient: 0.5, diffusivity: 0.1, specularity: 0.1,
-                texture: new Texture("assets/stars.png")
+                texture: new Texture("assets/water.png")
             }),
         }
 
-        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.initial_camera_location = Mat4.look_at(vec3(0, 25, 15), vec3(0, 0, 0), vec3(0, 1, 0));
     }
 
     make_control_panel() {
@@ -51,7 +52,7 @@ export class Assignment4 extends Scene {
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
             // Define the global camera and projection matrices, which are stored in program_state.
-            program_state.set_camera(Mat4.translation(0, 0, -8));
+            program_state.set_camera(this.initial_camera_location);
         }
 
         program_state.projection_transform = Mat4.perspective(
@@ -61,11 +62,13 @@ export class Assignment4 extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
         let t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
-        let model_transform = Mat4.identity();
+        let model_transform = Mat4.scale(30,1,20).times(Mat4.identity());
+
+        this.shapes.plane.draw(context, program_state, model_transform, this.materials.ocean);
 
         // TODO:  Draw the required boxes. Also update their stored matrices.
-        // You can remove the folloeing line.
-        this.shapes.axis.draw(context, program_state, model_transform, this.materials.phong.override({color: hex_color("#ffff00")}));
+        // You can remove the following line.
+        //this.shapes.axis.draw(context, program_state, model_transform, this.materials.phong.override({color: hex_color("#ffff00")}));
     }
 }
 
@@ -79,8 +82,12 @@ class Texture_Scroll_X extends Textured_Phong {
             uniform float animation_time;
             
             void main(){
-                // Sample the texture image in the correct place:
-                vec4 tex_color = texture2D( texture, f_tex_coord);
+                // Sample texture image
+                float speed = 0.05;
+                float factor = speed*mod(animation_time, 1.0/speed);
+                vec2 scaled_tex_coord = vec2(f_tex_coord.x, f_tex_coord.y - factor);
+                vec4 tex_color = texture2D( texture, scaled_tex_coord);
+                
                 if( tex_color.w < .01 ) discard;
                                                                          // Compute an initial (ambient) color:
                 gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 

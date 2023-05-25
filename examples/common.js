@@ -46,8 +46,8 @@ const Square = defs.Square =
         constructor() {
             super("position", "normal", "texture_coord");
             // Specify the 4 square corner locations, and match those up with normal vectors:
-            this.arrays.position = Vector3.cast([-1, -1, 0], [1, -1, 0], [-1, 1, 0], [1, 1, 0]);
-            this.arrays.normal = Vector3.cast([0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]);
+            this.arrays.position = Vector3.cast([-1, 0, -1], [1, 0, -1], [-1, 0, 1], [1, 0, 1]);
+            this.arrays.normal = Vector3.cast([0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0]);
             // Arrange the vertices into a square shape in texture space too:
             this.arrays.texture_coord = Vector.cast([0, 0], [1, 0], [0, 1], [1, 1]);
             // Use two triangles this time, indexing into four distinct vertices:
