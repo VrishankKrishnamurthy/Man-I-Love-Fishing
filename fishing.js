@@ -14,23 +14,18 @@ export class Fishing extends Scene {
     constructor() {
         // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
         super();
-
-        // TODO:  Create two cubes, including one with the default texture coordinates (from 0 to 1), and one with the modified
-        //        texture coordinates as required for cube #2.  You can either do this by modifying the cube code or by modifying
-        //        a cube instance's texture_coords after it is already created.
+        
         this.shapes = {
             box_1: new Cube(),
             box_2: new Cube(),
             axis: new Axis_Arrows(),
             plane: new Square(),
             raft: new Shape_From_File("assets/raft.obj"),
-            text: new Text_Line(15)
+            text: new Text_Line(15),
+            Island: new Shape_From_File("assets/island.obj"),
+            Shipwreck: new Shape_From_File("assets/shipwreck.obj")
         }
 
-
-        // TODO:  Create the materials required to texture both cubes with the correct images and settings.
-        //        Make each Material from the correct shader.  Phong_Shader will work initially, but when
-        //        you get to requirements 6 and 7 you will need different ones.
         this.materials = {
             phong: new Material(new Textured_Phong(), {
                 color: hex_color("#ffffff"),
@@ -51,6 +46,14 @@ export class Fishing extends Scene {
                 ambient: 1, diffusivity: 0, specularity: 0,
                 texture: new Texture("assets/text.png")
             }),
+            island: new Material(new defs.Textured_Phong(1), {
+               ambient: 1,
+               texture: new Texture("assets/islandAtlas.png")
+            }),
+            shipwreck: new Material(new defs.Textured_Phong(1), {
+                ambient: 1,
+                texture: new Texture("assets/shipwreckAtlas.png")
+            }),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 25, 15), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -58,19 +61,83 @@ export class Fishing extends Scene {
         this.key = null;
         this.speed = 0;
         this.max_speed = .05;
+        this.boatRad = .5;
         this.initial_boat_transform = Mat4.identity().times(Mat4.translation(0, -.32, 15)).times(Mat4.scale(.5, .5, .5)).times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 1, 0));
         this.rotation = Mat4.identity();
+        this.mapSize = 30;
+        this.livesLeft = 3;
+
+        // Generating Obstacle Positions
+        this.numIslands = 8;
+        this.numShipwrecks = 8;
+        this.obstacleRad = 1;
+
+        this.obstacleMat = [];
+        let boundsMultiplier = .9;
+        while (this.obstacleMat.length < this.numIslands + this.numShipwrecks) {
+            let x = Math.floor(Math.random() * 2 * boundsMultiplier * this.mapSize) - boundsMultiplier * this.mapSize;
+            let z = Math.floor(Math.random() * 2 * boundsMultiplier * this.mapSize) - boundsMultiplier * this.mapSize;
+            let newPos = true;
+
+            // Checking generated positions aren't too close to an existing obstacle
+            for (let i = 0; i < this.obstacleMat.length; i++) {
+                if (Math.sqrt((this.obstacleMat[i][0][3] - x) ** 2 + (this.obstacleMat[i][2][3] - z) ** 2) <= 8) {
+                    newPos = false;
+                    break;
+                }
+            }
+
+            // Use position to build matrix transformation for obstacle, push to array
+            if(newPos) {
+                this.obstacleMat.push(Mat4.translation(x, .8, z).times(Mat4.rotation(Math.random() * 6 * Math.PI, 0, 1, 0)).times(Mat4.identity()));
+            }
+        }
     }
     
     make_control_panel() {
         // TODO:  Implement requirement #5 using a key_triggered_button that responds to the 'c' key.
     }
-    
+
+    drawObstacles(context, program_state) {
+        // Iterate through obstacle array to draw
+        for (let i = 0; i < this.numIslands + this.numShipwrecks; i++) {
+            if(i<this.numIslands) // first few stored obstacles are islands
+                this.shapes.Island.draw(context, program_state, Mat4.translation(0, 0.5, 0).times(this.obstacleMat[i]), this.materials.island);
+            else if(this.obstacleMat[i][1][3] > 0) // rest are shipwrecks. check if shipwreck has been sunk
+                this.shapes.Shipwreck.draw(context, program_state, this.obstacleMat[i], this.materials.shipwreck);
+        }
+    }
+
+    checkObstacleCollisions(objPos) {
+        for(let i = 0; i < this.numIslands + this.numShipwrecks; i++) {
+            if(this.twoDimensionalCollision(objPos, this.boatRad, [this.obstacleMat[i][0][3], 0, this.obstacleMat[i][2][3]], this.obstacleRad)) {
+                if (i < this.numIslands)
+                    this.livesLeft -= 3; // hitting islands will end game
+                else if(this.obstacleMat[i][1][3] > 0){
+                    this.obstacleMat[i][1][3] = 0; // do not draw shipwreck again, shipwrecks hit will 'sink'
+                    this.livesLeft -= 1; // hitting ships only take 1 life
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Simple Bounding Sphere collision given object transforms and assigned radii
+    twoDimensionalCollision(transform1, r1, transform2, r2) {
+        return Math.sqrt((transform1[0] - transform2[0])**2 + (transform1[2] - transform2[2])**2) < r1 + r2;
+    }
+
     display(context, program_state) {
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
         if (t == 0) {
             this.boat_transform = this.initial_boat_transform;
         }
+
+        if(this.livesLeft <= 0) {
+            //return;
+        }
+
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
 
@@ -115,6 +182,7 @@ export class Fishing extends Scene {
             // Define the global camera and projection matrices, which are stored in program_state.
             //program_state.set_camera(this.initial_camera_location);
         }
+
         this.boat_transform = this.boat_transform.times(Mat4.translation(this.speed, 0, 0));
 
         program_state.projection_transform = Mat4.perspective(
@@ -123,10 +191,11 @@ export class Fishing extends Scene {
         const light_position = vec4(10, 10, 10, 1);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
-        let water_transform = Mat4.identity().times(Mat4.scale(30,1,20));
+        let water_transform = Mat4.identity().times(Mat4.scale(this.mapSize,1,this.mapSize));
 
         this.shapes.plane.draw(context, program_state, water_transform, this.materials.ocean);
-        this.shapes.raft.draw(context, program_state, this.boat_transform, this.materials.wood);   
+        this.drawObstacles(context, program_state);
+        this.shapes.raft.draw(context, program_state, this.boat_transform, this.materials.wood);
 
         let angle = Math.acos(this.rotation[0][0]);
         if (this.rotation[0][2] < 0) angle = -(angle) + 2*Math.PI;
@@ -137,11 +206,13 @@ export class Fishing extends Scene {
         desired = desired.map((x, i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.1));
         program_state.set_camera(desired);
 
+        this.checkObstacleCollisions(boat_position);
+
         this.shapes.text.set_string(`${(100 * this.speed / this.max_speed).toFixed(0)}% Speed`, context.context);
         this.shapes.text.draw(context, program_state, this.boat_transform.times(Mat4.scale(.1, .5, .5)).times(Mat4.translation(0, 2, -20)).times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0)).times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1)), this.materials.text_image);
-        // TODO:  Draw the required boxes. Also update their stored matrices.
-        // You can remove the following line.
-        //this.shapes.axis.draw(context, program_state, model_transform, this.materials.phong.override({color: hex_color("#ffff00")}));
+
+        this.shapes.text.set_string(`${this.livesLeft}`, context.context);
+        this.shapes.text.draw(context, program_state, this.boat_transform.times(Mat4.scale(.1, .5, .5)).times(Mat4.translation(0, 4, -20)).times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0)).times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1)), this.materials.text_image);
     }
 }
 
@@ -159,7 +230,7 @@ class Texture_Scroll_X extends Textured_Phong {
                 float speed = 0.05;
                 float factor = speed*mod(animation_time, 1.0/speed);
                 vec2 scaled_tex_coord = vec2(f_tex_coord.x, f_tex_coord.y - factor);
-                vec4 tex_color = texture2D( texture, scaled_tex_coord);
+                vec4 tex_color = texture2D( texture, f_tex_coord); // change f_tex_coord to scaled_tex_coord for movement
                 
                 if( tex_color.w < .01 ) discard;
                                                                          // Compute an initial (ambient) color:
