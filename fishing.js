@@ -23,7 +23,8 @@ export class Fishing extends Scene {
             raft: new Shape_From_File("assets/raft.obj"),
             text: new Text_Line(15),
             Island: new Shape_From_File("assets/island.obj"),
-            Shipwreck: new Shape_From_File("assets/shipwreck.obj")
+            Shipwreck: new Shape_From_File("assets/shipwreck.obj"),
+            Barrier: new Shape_From_File("assets/mts.obj")
         }
 
         this.materials = {
@@ -54,6 +55,10 @@ export class Fishing extends Scene {
                 ambient: 1,
                 texture: new Texture("assets/shipwreckAtlas.png")
             }),
+            barrier: new Material(new defs.Textured_Phong(1), {
+                ambient: 1,
+                texture: new Texture("assets/mts.png")
+            })
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 25, 15), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -62,7 +67,7 @@ export class Fishing extends Scene {
         this.speed = 0;
         this.max_speed = .05;
         this.boatRad = .5;
-        this.initial_boat_transform = Mat4.identity().times(Mat4.translation(0, -.32, 15)).times(Mat4.scale(.5, .5, .5)).times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 1, 0));
+        this.initial_boat_transform = Mat4.identity().times(Mat4.translation(0, -.32, 0)).times(Mat4.scale(.5, .5, .5)).times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 1, 0));
         this.rotation = Mat4.identity();
         this.mapSize = 30;
         this.livesLeft = 3;
@@ -79,13 +84,17 @@ export class Fishing extends Scene {
             let z = Math.floor(Math.random() * 2 * boundsMultiplier * this.mapSize) - boundsMultiplier * this.mapSize;
             let newPos = true;
 
-            // Checking generated positions aren't too close to an existing obstacle
-            for (let i = 0; i < this.obstacleMat.length; i++) {
-                if (Math.sqrt((this.obstacleMat[i][0][3] - x) ** 2 + (this.obstacleMat[i][2][3] - z) ** 2) <= 8) {
-                    newPos = false;
-                    break;
+            // Checking generated positions aren't at boat spawn
+            if(Math.sqrt((this.initial_boat_transform[0][3] - x) ** 2 + (this.initial_boat_transform[2][3] - z) ** 2) <= 8)
+                newPos = false;
+            else
+                // Checking generated positions aren't too close to an existing obstacle
+                for (let i = 0; i < this.obstacleMat.length; i++) {
+                    if (Math.sqrt((this.obstacleMat[i][0][3] - x) ** 2 + (this.obstacleMat[i][2][3] - z) ** 2) <= 8) {
+                        newPos = false;
+                        break;
+                    }
                 }
-            }
 
             // Use position to build matrix transformation for obstacle, push to array
             if(newPos) {
@@ -99,6 +108,9 @@ export class Fishing extends Scene {
     }
 
     drawObstacles(context, program_state) {
+        // Draw barrier
+        this.shapes.Barrier.draw(context, program_state, Mat4.translation(0,4,0).times(Mat4.scale(this.mapSize+4, this.mapSize+4, this.mapSize+4)).times(Mat4.identity()), this.materials.barrier);
+
         // Iterate through obstacle array to draw
         for (let i = 0; i < this.numIslands + this.numShipwrecks; i++) {
             if(i<this.numIslands) // first few stored obstacles are islands
@@ -109,6 +121,11 @@ export class Fishing extends Scene {
     }
 
     checkObstacleCollisions(objPos) {
+        if (Math.abs(objPos[0]) > this.mapSize - 2 || Math.abs(objPos[2]) > this.mapSize - 2) {
+            this.livesLeft -= 3; // if boat hits edge of border
+            return true;
+        }
+
         for(let i = 0; i < this.numIslands + this.numShipwrecks; i++) {
             if(this.twoDimensionalCollision(objPos, this.boatRad, [this.obstacleMat[i][0][3], 0, this.obstacleMat[i][2][3]], this.obstacleRad)) {
                 if (i < this.numIslands)
@@ -211,7 +228,7 @@ export class Fishing extends Scene {
         this.shapes.text.set_string(`${(100 * this.speed / this.max_speed).toFixed(0)}% Speed`, context.context);
         this.shapes.text.draw(context, program_state, this.boat_transform.times(Mat4.scale(.1, .5, .5)).times(Mat4.translation(0, 2, -20)).times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0)).times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1)), this.materials.text_image);
 
-        this.shapes.text.set_string(`${this.livesLeft}`, context.context);
+        this.shapes.text.set_string(`${this.livesLeft} Lives Left`, context.context);
         this.shapes.text.draw(context, program_state, this.boat_transform.times(Mat4.scale(.1, .5, .5)).times(Mat4.translation(0, 4, -20)).times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0)).times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1)), this.materials.text_image);
     }
 }
