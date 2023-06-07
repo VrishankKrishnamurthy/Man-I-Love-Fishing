@@ -77,7 +77,7 @@ export class Fishing extends Scene {
         this.speed = 0;
         this.max_speed = .05;
         this.boatRad = .5;
-        this.fishing_radius = 5;
+        this.fishing_radius = 4;
         this.fish_time = 3;
         this.initial_boat_transform = Mat4.identity().times(Mat4.translation(0, -.32, 0)).times(Mat4.scale(.5, .5, .5)).times(Mat4.rotation(Math.PI / 2, 0, 1, 0)).times(Mat4.translation(0, 1, 0));
         this.boat_rotation = Mat4.identity();
@@ -381,7 +381,7 @@ export class Fishing extends Scene {
             this.drawObstacles(context, program_state);
             this.shapes.raft.draw(context, program_state, this.boat_transform, this.materials.wood);
 
-            let fishing_circle_transform = this.boat_transform.times(Mat4.translation(0, -0.4, 0)).times(Mat4.scale(5, .1, 5))
+            let fishing_circle_transform = this.boat_transform.times(Mat4.translation(0, -0.4, 0)).times(Mat4.scale(this.fishing_radius * 2, .1, this.fishing_radius * 2))
 
             if (this.show_radius)
                 this.shapes.FishingCircle.draw(context, program_state, fishing_circle_transform, this.materials.fishing_circle);
@@ -415,38 +415,49 @@ export class Fishing extends Scene {
             this.livesLeft = Math.max(this.livesLeft, 0)
     
     
-            // Speed Text
-            this.shapes.text.set_string(`${(100 * this.speed / this.max_speed).toFixed(0)}% Speed`, context.context);
-    
+            // Game Text
             let speed_transform = Mat4.identity()
             let lives_transform = Mat4.identity()
+            let scores_transform = Mat4.identity()
     
             if (this.view == "Boat")
             {
+                let text_scale = .5
                 speed_transform = this.boat_transform
-                                    .times(Mat4.scale(.5, .5, .5))
-                                    .times(Mat4.translation(0, 2, -20))
+                                    .times(Mat4.scale(text_scale, text_scale, text_scale))
+                                    .times(Mat4.translation(0, 0, -20))
                                     .times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0))
                                     .times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1))
     
                 lives_transform = this.boat_transform
-                                    .times(Mat4.scale(.5, .5, .5))
+                                    .times(Mat4.scale(text_scale, text_scale, text_scale))
+                                    .times(Mat4.translation(0, 2, -20))
+                                    .times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0))
+                                    .times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1))
+
+                scores_transform = this.boat_transform
+                                    .times(Mat4.scale(text_scale, text_scale, text_scale))
                                     .times(Mat4.translation(0, 4, -20))
                                     .times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0))
                                     .times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1))
-                
             }
             else if(this.view == "Top")
             {   
                 let text_scale = .35
                 speed_transform = Mat4.identity()
                                     .times(Mat4.scale(text_scale, text_scale, text_scale))
-                                    .times(Mat4.translation(boat_position[0] * (1/text_scale) - 20, 1, boat_position[2] * (1/text_scale) + 16))
+                                    .times(Mat4.translation(boat_position[0] * (1/text_scale) - 20, 1, boat_position[2] * (1/text_scale) + 14))
                                     .times(Mat4.rotation(Math.PI, 0, 0, 1))
                                     .times(Mat4.rotation(Math.PI, 0, 1, 0))
                                     
                       
                 lives_transform = Mat4.identity()
+                                    .times(Mat4.scale(text_scale, text_scale, text_scale))
+                                    .times(Mat4.translation(boat_position[0] * (1/text_scale) - 20, 1, boat_position[2] * (1/text_scale) + 16))
+                                    .times(Mat4.rotation(Math.PI, 0, 0, 1))
+                                    .times(Mat4.rotation(Math.PI, 0, 1, 0))
+                                    
+                scores_transform = Mat4.identity()
                                     .times(Mat4.scale(text_scale, text_scale, text_scale))
                                     .times(Mat4.translation(boat_position[0] * (1/text_scale) - 20, 1, boat_position[2] * (1/text_scale) + 18))
                                     .times(Mat4.rotation(Math.PI, 0, 0, 1))
@@ -454,10 +465,15 @@ export class Fishing extends Scene {
                               
             }
     
+            this.shapes.text.set_string(`Score: ${this.score.toFixed(0)}`, context.context);
+            this.shapes.text.draw(context, program_state, scores_transform, this.materials.text_image);
+
+            this.shapes.text.set_string(`${(100 * this.speed / this.max_speed).toFixed(0)}% Speed`, context.context);
             this.shapes.text.draw(context, program_state, speed_transform, this.materials.text_image);
     
             this.shapes.text.set_string(`${this.livesLeft} Lives Left`, context.context);
             this.shapes.text.draw(context, program_state, lives_transform, this.materials.text_image);
+
         }
 
 
@@ -680,7 +696,7 @@ class Ring_Shader extends Shader {
             this.shared_glsl_code() +
             `
         void main(){
-          gl_FragColor = sin(distance(center, point_position) * 10.0) * vec4(.01, .99, .81, 1.0);
+          gl_FragColor = sin(distance(center, point_position) * 5.0) * vec4(.01, .99, .81, 1.0);
         }`
         );
     }
