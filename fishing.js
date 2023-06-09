@@ -445,7 +445,7 @@ export class Fishing extends Scene {
                                     .times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0))
                                     .times(Mat4.rotation(3 * Math.PI / 2, 0, 0, 1))
             }
-            else if(this.view == "Top")
+            else if(this.view == "Top" || this.view == "Free")
             {   
                 let text_scale = .35
                 speed_transform = Mat4.identity()
