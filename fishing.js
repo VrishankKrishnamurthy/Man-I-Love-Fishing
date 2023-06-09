@@ -128,6 +128,10 @@ export class Fishing extends Scene {
     
     make_control_panel()
     {
+        this.key_triggered_button("Increase Speed", ["ArrowUp"], () => {});
+        this.key_triggered_button("Decrease Speed", ["ArrowDown"], () => {});
+        this.key_triggered_button("Rotate Left", ["ArrowLeft"], () => {});
+        this.key_triggered_button("Rotate Right", ["ArrowRight"], () => {});
         this.key_triggered_button("Boat View", ["b"], () => this.view = "Boat");
         this.key_triggered_button("Top View", ["t"], () => this.view = "Top");
         this.key_triggered_button("Free View", ["g"], () => this.view = "Free"); // testing only
