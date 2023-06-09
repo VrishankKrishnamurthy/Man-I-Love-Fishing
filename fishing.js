@@ -157,7 +157,7 @@ export class Fishing extends Scene {
             let size = Math.random() * .5 + .5
             if (size >= .95) size = 1.5
             let fish_scr = Mat4.identity().times(Mat4.scale(.5 * size, .5 * size, .5 * size)).times(Mat4.rotation(3 * Math.PI / 2, 1, 0, 0).times(Mat4.rotation(Math.PI / 2, 0, 0, 1)))
-            this.fish.push({"position": Mat4.translation(x, 0, z).times(fish_scr.times(initial_rotation)), "rotation_matrix": initial_rotation, "remaining_travel_time": 0, "speed": Math.random() * 0.05, "collision_time": 0, "size": size, "fish_time": 0});
+            this.fish.push({"position": Mat4.translation(x, 0, z).times(fish_scr.times(initial_rotation)), "rotation_matrix": initial_rotation, "remaining_travel_time": 0, "speed": Math.random() * 0.05, "size": size, "fish_time": 0});
         } else {
             this.generateFishPosition(boundsMultiplier);
         }
@@ -183,11 +183,10 @@ export class Fishing extends Scene {
             let fish_position = [fish_transform[0][3], fish_transform[1][3], fish_transform[2][3]]
             let curr_rotation = this.fish[i]["rotation_matrix"]
             let fish_travel_time = this.fish[i]["remaining_travel_time"]
-            let collision_time = this.fish[i]["collision_time"]
             let fish_speed = this.fish[i]["speed"]
             let size = this.fish[i]["size"]
             let fish_time = this.fish[i]["fish_time"]
-            if (this.checkObstacleCollisions(fish_position, false) == 5 && collision_time - curr_time < 0) {
+            if (this.checkObstacleCollisions(fish_position, false) == 5) {
                 // kill the fish :(
                 this.fish.splice(i, 1);
                 continue;
@@ -196,7 +195,7 @@ export class Fishing extends Scene {
                 fish_transform = fish_transform.times(new_rotation)
                 curr_rotation = curr_rotation.times(new_rotation)
                 fish_speed = (Math.random() * 0.01 + 0.01) * size
-                fish_travel_time = curr_time + 3
+                fish_travel_time = curr_time + (Math.random() * 5 + 1)
             }
 
             if (this.checkNearPlayer(fish_position)) {
@@ -215,7 +214,7 @@ export class Fishing extends Scene {
             
             let fish_angle = Math.acos(curr_rotation[0][0]);
             if (curr_rotation[1][0] < 0) fish_angle = -(fish_angle) + 2 * Math.PI;
-            fish_transform = Mat4.translation(fish_speed * Math.round(Math.cos(fish_angle)), 0, -fish_speed * Math.round(Math.sin(fish_angle)) ).times(fish_transform)
+            fish_transform = Mat4.translation(fish_speed * Math.round(Math.cos(fish_angle)), 0, -fish_speed * Math.round(Math.sin(fish_angle))).times(fish_transform)
 
             const colorArray = ["#ff0000", "#fc0300", "#fa0500", "#f70800", "#f50a00", "#f20d00", "#f00f00", "#ed1200", "#eb1400",
                     "#e81700", "#e51a00", "#e31c00", "#e01f00", "#de2100", "#db2400", "#d92600", "#d62900", "#d42b00",
@@ -230,11 +229,12 @@ export class Fishing extends Scene {
                     "#19e600", "#17e800", "#14eb00", "#12ed00", "#0ff000", "#0df200", "#0af500", "#08f700", "#05fa00", "#03fc00"]
             let colorIndex = 0;
             if (fish_time > 0) {
-                colorIndex = Math.round((this.fish_time - (fish_time - curr_time))*20)
+                colorIndex = Math.round((this.fish_time - (fish_time - curr_time))*(colorArray.length/this.fish_time))
             }
 
-            this.shapes.Fish.draw(context, program_state, fish_transform, this.materials.fish.override(hex_color(colorArray[colorIndex])));
-            this.fish[i] = {"position": fish_transform, "rotation_matrix": curr_rotation, "remaining_travel_time": fish_travel_time, "speed": fish_speed, "collision_time": collision_time, "size": size, "fish_time": fish_time}
+            let fishColor = size == 1.5 && colorIndex < 25 ? hex_color("#ffffff") : hex_color(colorArray[colorIndex])
+            this.shapes.Fish.draw(context, program_state, fish_transform, this.materials.fish.override(fishColor));
+            this.fish[i] = {"position": fish_transform, "rotation_matrix": curr_rotation, "remaining_travel_time": fish_travel_time, "speed": fish_speed, "size": size, "fish_time": fish_time}
         }
         while (this.fish.length < this.numFish) {
             // replace dead/caught fish with new 
@@ -393,22 +393,26 @@ export class Fishing extends Scene {
         
     
             let boat_position = [this.boat_transform[0][3], this.boat_transform[1][3], this.boat_transform[2][3]]
-            if (this.view == "Boat")
-            {
-                let camera_transform = [vec3(boat_position[0] + 15 * Math.sin(angle), boat_position[1] + 5, boat_position[2] + 15 * Math.cos(angle)), vec3(boat_position[0] + 3 * Math.sin(angle), boat_position[1] + 5, boat_position[2] + 3 * Math.cos(angle)), vec3(0, 1, 0)];
-                let desired = Mat4.look_at(camera_transform[0], camera_transform[1], camera_transform[2]);
-                desired = desired.map((x, i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.1));
-                program_state.set_camera(desired);
-            }
-            else if (this.view == "Top")
-            {
-                let camera_position = vec3(boat_position[0], boat_position[1] + 20, boat_position[2] + 5);
-                let target_position = vec3(boat_position[0], boat_position[1], boat_position[2]);
-                let up_vector = vec3(0, 0, -1);
-              
-                let desired = Mat4.look_at(camera_position, target_position, up_vector);
-                desired = desired.map((x, i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.025));
-                program_state.set_camera(desired);
+            try {
+                if (this.view == "Boat")
+                {
+                    let camera_transform = [vec3(boat_position[0] + 15 * Math.sin(angle), boat_position[1] + 5, boat_position[2] + 15 * Math.cos(angle)), vec3(boat_position[0] + 3 * Math.sin(angle), boat_position[1] + 5, boat_position[2] + 3 * Math.cos(angle)), vec3(0, 1, 0)];
+                    let desired = Mat4.look_at(camera_transform[0], camera_transform[1], camera_transform[2]);
+                    desired = desired.map((x, i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.1));
+                    program_state.set_camera(desired);
+                }
+                else if (this.view == "Top")
+                {
+                    let camera_position = vec3(boat_position[0], boat_position[1] + 20, boat_position[2] + 5);
+                    let target_position = vec3(boat_position[0], boat_position[1], boat_position[2]);
+                    let up_vector = vec3(0, 0, -1);
+                  
+                    let desired = Mat4.look_at(camera_position, target_position, up_vector);
+                    desired = desired.map((x, i) => Vector.from(program_state.camera_inverse[i]).mix(x, 0.025));
+                    program_state.set_camera(desired);
+                }
+            } catch (e) {
+                console.log(e);
             }
     
             this.livesLeft -= this.checkObstacleCollisions(boat_position, true);
